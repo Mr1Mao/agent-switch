@@ -3,13 +3,13 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "agent-core"
+name = "agent-switch"
 version = "0.1.0"
 description = "Unified abstraction layer for agent SDKs (deepagents, Qcoder SDK, etc.)"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
-authors = [{ name = "agent-core contributors" }]
+authors = [{ name = "agent-switch contributors" }]
 keywords = ["agent", "sdk", "deepagents", "llm", "abstraction"]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -51,6 +51,11 @@ dev = [
 
 [tool.hatch.build]
 sources = ["src"]
+
+# 显式声明要打进 wheel 的包：项目名 agent-switch 与导入名 agent_core 不同，
+# hatchling 的自动发现按「目录名匹配项目名」无法找到 src/agent_core/，必须显式指定。
+[tool.hatch.build.targets.wheel]
+packages = ["src/agent_core"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

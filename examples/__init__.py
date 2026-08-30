@@ -1,4 +1,4 @@
-"""agent-core 示例包。
+"""agent-switch 示例包。
 
 可直接运行（项目根目录下）：
 - ``python -m examples``                  统一 API 调用入口演示

@@ -1,8 +1,8 @@
-# agent-core
+# agent-switch
 
 **Agent SDK 统一抽象层（deepagents、Qcoder SDK 等）**
 
-`agent-core` 为业务代码提供一套稳定的统一 API（`create_agent` + `run` / `stream`），
+`agent-switch` 为业务代码提供一套稳定的统一 API（`create_agent` + `run` / `stream`），
 上层类型与调用方式不变，即可切换底层 Agent 框架（deepagents、qcoder 等）。
 
 ## 特性
@@ -20,11 +20,11 @@
 ## 安装
 
 ```bash
-pip install agent-core
+pip install agent-switch
 # 或按需安装额外依赖
-pip install "agent-core[deepagents]"    # deepagents 后端
-pip install "agent-core[qcoder]"        # qcoder 后端（qoder-agent-sdk）
-pip install "agent-core[all]"
+pip install "agent-switch[deepagents]"    # deepagents 后端
+pip install "agent-switch[qcoder]"        # qcoder 后端（qoder-agent-sdk）
+pip install "agent-switch[all]"
 ```
 
 > `qcoder` 后端运行真实的 `qoder-agent-sdk`（内部拉起 `qodercli` CLI）。
@@ -78,11 +78,11 @@ agent = create_agent(AgentBackend.DEEPAGENTS, config)
 response = agent.run("What is the weather in Paris?")
 ```
 
-也可以让 agent-core 自行构建模型：`AgentModel(name=..., api_key=..., base_url=...)`
+也可以让 agent-switch 自行构建模型：`AgentModel(name=..., api_key=..., base_url=...)`
 会映射到 `langchain.chat_models.init_chat_model`；只有 `AgentModel(name="openai:gpt-4o-mini")`
 （无 key/url）时则直接把模型名字符串透传给 deepagents。
 
-## Qcoder ↔ agent-core 映射
+## Qcoder ↔ agent-switch 映射
 
 `qcoder` 后端运行在真实的 `qoder-agent-sdk` 上（由 SDK 拉起 `qodercli` CLI），
 支持消息格式归一化、统一 hooks 生命周期、流式、tools/skills/MCP 配置与会话标识。
@@ -92,7 +92,7 @@ response = agent.run("What is the weather in Paris?")
 输入方向（`AgentMessage` → qoder CLI wire 格式，见
 `agent_core.backends.qcoder.mapping.agent_messages_to_qoder_wire`）：
 
-| agent-core                | qoder wire                                                    |
+| agent-switch                | qoder wire                                                    |
 | ------------------------- | ------------------------------------------------------------- |
 | `MessageRole.USER`        | `{"type":"user","message":{"role":"user","content":<str>}}`   |
 | `MessageRole.ASSISTANT`   | 文本 + `tool_use` 块（`{"type":"tool_use","id","name","input"}`）合并进一条 `user` 消息 |
@@ -102,7 +102,7 @@ response = agent.run("What is the weather in Paris?")
 
 输出方向（qoder SDK `Message` → `AgentMessage`）：
 
-| qoder SDK                 | agent-core                              |
+| qoder SDK                 | agent-switch                              |
 | ------------------------- | --------------------------------------- |
 | `AssistantMessage`        | `role=assistant`，`content`（`TextBlock` 拼接） |
 | `ThinkingBlock`           | `thinking`                              |
@@ -117,7 +117,7 @@ response = agent.run("What is the weather in Paris?")
 `afterAgent` / `afterStop`）在 adapter 层每次 run / stream 触发一次（见 Hooks
 章节）；调用级事件桥接到 Qoder SDK 原生 hooks：
 
-| agent-core hook      | Qoder HookEvent      | BLOCK / MODIFY 映射                                   |
+| agent-switch hook      | Qoder HookEvent      | BLOCK / MODIFY 映射                                   |
 | -------------------- | -------------------- | ----------------------------------------------------- |
 | `beforeTool`         | `PreToolUse`         | BLOCK → `continue_:False, decision:"block"` + `permissionDecision:"deny"`；MODIFY(`updated_input`) → `updatedInput` |
 | `afterTool`          | `PostToolUse`        | MODIFY(`updated_tool_output`) → `updatedToolOutput`   |
@@ -130,7 +130,7 @@ response = agent.run("What is the weather in Paris?")
 
 ### 配置映射（`AgentConfig` → `QoderAgentOptions`）
 
-| agent-core              | QoderAgentOptions                                    |
+| agent-switch              | QoderAgentOptions                                    |
 | ----------------------- | ---------------------------------------------------- |
 | `AgentModel.name` / `extra["model"]`（str） | `model`                     |
 | `system_prompt`         | `system_prompt`                                      |
@@ -151,7 +151,7 @@ assistant 文本）。token 级 partial 消息（`StreamEvent`）默认不启用
 
 ### 运行前提
 
-- `pip install "agent-core[qcoder]"`（连带安装 `qoder-agent-sdk`、`mcp`、`anyio`）
+- `pip install "agent-switch[qcoder]"`（连带安装 `qoder-agent-sdk`、`mcp`、`anyio`）
 - 安装 `qodercli` CLI 并登录一次（`qodercli auth`）
 - 同步 `run()` 内部使用 `asyncio.run`：在运行中的事件循环里调用会抛
   `RuntimeError` —— 异步场景请用 `stream()`
@@ -205,7 +205,7 @@ afterSubagent` 桥接到 Qoder SDK 原生 hooks（`PreToolUse` / `PostToolUse` /
 
 ### Hooks ↔ deepagents 实现映射
 
-| agent-core hook          | deepagents 实现方式                                          | 层次 / 时机                                    |
+| agent-switch hook          | deepagents 实现方式                                          | 层次 / 时机                                    |
 | ------------------------ | ------------------------------------------------------------ | ---------------------------------------------- |
 | `beforeAgent`          | `AgentHooksMiddleware.before_agent` / `abefore_agent`（entry 节点） | agent 级，每次 agent 执行一次 |
 | `beforePrompt`           | `AgentHooksMiddleware.before_agent` / `abefore_agent`（entry 节点） | agent 级，每次 agent 执行一次 |
@@ -264,9 +264,9 @@ async for chunk in agent.stream("hello"):
 | `meta`       | `dict`                 | 后端元信息（`langchain_type` 等）           |
 | `_raw`       | `PrivateAttr`          | 仅供适配器调试，永不参与序列化              |
 
-## DeepAgents ↔ agent-core 映射表
+## DeepAgents ↔ agent-switch 映射表
 
-| agent-core               | deepagents / LangChain                                 |
+| agent-switch               | deepagents / LangChain                                 |
 | ------------------------ | ------------------------------------------------------ |
 | `MessageRole.USER`       | `HumanMessage`                                         |
 | `MessageRole.SYSTEM`     | `SystemMessage`                                        |

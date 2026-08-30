@@ -45,7 +45,7 @@ _ROLE_BY_LC_TYPE: dict[str, MessageRole] = {
     "tool": MessageRole.TOOL,
 }
 
-_INSTALL_HINT = "pip install 'agent-core[deepagents]'"
+_INSTALL_HINT = "pip install 'agent-switch[deepagents]'"
 
 
 def _import_module(module_name: str) -> Any:

@@ -1,4 +1,4 @@
-"""agent-core：Agent SDK 统一抽象层（deepagents、Qcoder SDK 等）。
+"""agent-switch：Agent SDK 统一抽象层（deepagents、Qcoder SDK 等）。
 
 业务代码通过统一 API（``create_agent`` + ``run`` / ``stream``）切换底层框架，
 上层类型与调用方式不变。

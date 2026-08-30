@@ -27,7 +27,7 @@ from agent_core.types import (
     ToolCall,
 )
 
-_INSTALL_HINT = "pip install 'agent-core[qcoder]'"
+_INSTALL_HINT = "pip install 'agent-switch[qcoder]'"
 
 #: QoderAgentOptions 的 extra 白名单透传键
 QODER_EXTRA_KEYS: tuple[str, ...] = (

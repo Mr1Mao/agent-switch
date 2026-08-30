@@ -1,8 +1,8 @@
-# agent-core
+# agent-switch
 
 **Unified abstraction layer for agent SDKs (deepagents, Qcoder SDK, etc.)**
 
-`agent-core` gives your business code a single, stable API — `create_agent` + `run` / `stream` —
+`agent-switch` gives your business code a single, stable API — `create_agent` + `run` / `stream` —
 so you can switch underlying agent frameworks (deepagents, qcoder, …) without touching
 your upper-layer types or call sites.
 
@@ -22,11 +22,11 @@ your upper-layer types or call sites.
 ## Installation
 
 ```bash
-pip install agent-core
+pip install agent-switch
 # or with extras
-pip install "agent-core[deepagents]"    # deepagents backend
-pip install "agent-core[qcoder]"        # qcoder backend (qoder-agent-sdk)
-pip install "agent-core[all]"
+pip install "agent-switch[deepagents]"    # deepagents backend
+pip install "agent-switch[qcoder]"        # qcoder backend (qoder-agent-sdk)
+pip install "agent-switch[all]"
 ```
 
 > The `qcoder` backend runs the real `qoder-agent-sdk`, which spawns the
@@ -81,11 +81,11 @@ agent = create_agent(AgentBackend.DEEPAGENTS, config)
 response = agent.run("What is the weather in Paris?")
 ```
 
-Alternatively let agent-core build the model: `AgentModel(name=..., api_key=..., base_url=...)`
+Alternatively let agent-switch build the model: `AgentModel(name=..., api_key=..., base_url=...)`
 maps to `langchain.chat_models.init_chat_model`, while a bare `AgentModel(name="openai:gpt-4o-mini")`
 passes the string straight through.
 
-## Qcoder ↔ agent-core mapping
+## Qcoder ↔ agent-switch mapping
 
 The `qcoder` backend runs on the real `qoder-agent-sdk` (which drives the
 `qodercli` CLI). It supports message format normalization, the unified hooks
@@ -96,7 +96,7 @@ lifecycle, streaming, tools / skills / MCP configuration, and session identity.
 Input direction (`AgentMessage` → qoder CLI wire format, via
 `agent_core.backends.qcoder.mapping.agent_messages_to_qoder_wire`):
 
-| agent-core                | qoder wire                                                    |
+| agent-switch                | qoder wire                                                    |
 | ------------------------- | ------------------------------------------------------------- |
 | `MessageRole.USER`        | `{"type":"user","message":{"role":"user","content":<str>}}`   |
 | `MessageRole.ASSISTANT`   | text + `tool_use` blocks (`{"type":"tool_use","id","name","input"}`) in one `user` message |
@@ -106,7 +106,7 @@ Input direction (`AgentMessage` → qoder CLI wire format, via
 
 Output direction (qoder SDK `Message` → `AgentMessage`):
 
-| qoder SDK                 | agent-core                              |
+| qoder SDK                 | agent-switch                              |
 | ------------------------- | --------------------------------------- |
 | `AssistantMessage`        | `role=assistant`, `content` (joined `TextBlock`s) |
 | `ThinkingBlock`           | `thinking`                              |
@@ -122,7 +122,7 @@ Session-level events (`beforeAgent` / `beforePrompt` / `beforeLLM` / `afterLLM` 
 exactly as documented in the Hooks chapter. Call-level events are bridged into
 the Qoder SDK native hook system:
 
-| agent-core hook      | Qoder HookEvent      | BLOCK / MODIFY mapping                              |
+| agent-switch hook      | Qoder HookEvent      | BLOCK / MODIFY mapping                              |
 | -------------------- | -------------------- | --------------------------------------------------- |
 | `beforeTool`         | `PreToolUse`         | BLOCK → `continue_:False, decision:"block"` + `permissionDecision:"deny"`; MODIFY(`updated_input`) → `updatedInput` |
 | `afterTool`          | `PostToolUse`        | MODIFY(`updated_tool_output`) → `updatedToolOutput` |
@@ -136,7 +136,7 @@ empty hooks list adds no callbacks to the CLI.
 
 ### Configuration mapping (`AgentConfig` → `QoderAgentOptions`)
 
-| agent-core              | QoderAgentOptions                                    |
+| agent-switch              | QoderAgentOptions                                    |
 | ----------------------- | ---------------------------------------------------- |
 | `AgentModel.name` / `extra["model"]` (str) | `model`                       |
 | `system_prompt`         | `system_prompt`                                      |
@@ -158,7 +158,7 @@ Token-level partial messages (`StreamEvent`) are not enabled by default.
 
 ### Runtime requirements
 
-- `pip install "agent-core[qcoder]"` (pulls `qoder-agent-sdk`, `mcp`, `anyio`)
+- `pip install "agent-switch[qcoder]"` (pulls `qoder-agent-sdk`, `mcp`, `anyio`)
 - Install the `qodercli` CLI and log in once (`qodercli auth`)
 - Sync `run()` uses `asyncio.run` internally: calling it inside a running event
   loop raises `RuntimeError` — use `stream()` in async code.
@@ -215,7 +215,7 @@ bridged for the `deepagents` backend.
 
 ### Hooks ↔ deepagents implementation mapping
 
-| agent-core hook          | deepagents implementation                                        | Level / timing                                        |
+| agent-switch hook          | deepagents implementation                                        | Level / timing                                        |
 | ------------------------ | ---------------------------------------------------------------- | ----------------------------------------------------- |
 | `beforeAgent`          | `AgentHooksMiddleware.before_agent` / `abefore_agent` (entry node) | agent, once per agent execution |
 | `beforePrompt`           | `AgentHooksMiddleware.before_agent` / `abefore_agent` (entry node) | agent, once per agent execution |
@@ -275,9 +275,9 @@ The stream always ends with a chunk carrying `is_finish=True`.
 | `meta`       | `dict`                 | backend metadata (`langchain_type`, …)       |
 | `_raw`       | `PrivateAttr`          | adapter debugging only — never serialized    |
 
-## DeepAgents ↔ agent-core mapping
+## DeepAgents ↔ agent-switch mapping
 
-| agent-core             | deepagents / LangChain                                    |
+| agent-switch             | deepagents / LangChain                                    |
 | ---------------------- | --------------------------------------------------------- |
 | `MessageRole.USER`     | `HumanMessage`                                            |
 | `MessageRole.SYSTEM`   | `SystemMessage`                                           |

@@ -32,7 +32,7 @@ def main() -> None:
 
     print(f"使用模型: {config.model.name}")
     agent = create_agent(AgentBackend.DEEPAGENTS, config)
-    response = agent.run("用一句话介绍 agent-core")
+    response = agent.run("用一句话介绍 agent-switch")
     print(response.content)
 
 

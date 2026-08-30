@@ -1,4 +1,4 @@
-"""agent-core 统一 API 调用入口演示。
+"""agent-switch 统一 API 调用入口演示。
 
 覆盖所有调用入口：backend 枚举/字符串、str/list 输入、构造时/调用时配置、
 同步 run、异步 stream、hooks 生命周期、未知后端异常、deepagents 真实后端。
@@ -156,7 +156,7 @@ def demo_deepagents_guarded() -> None:
 
 def main() -> None:
     """统一 API 调用入口演示的主入口。"""
-    print("== agent-core 统一 API 调用入口演示 ==\n")
+    print("== agent-switch 统一 API 调用入口演示 ==\n")
     demo_backend_enum_and_string()
     demo_run_inputs()
     demo_run_with_config()

@@ -58,10 +58,13 @@ def demo_backend_enum_and_string() -> None:
 def demo_run_inputs() -> None:
     """入口 2：run 接受 str 或 list[AgentMessage] 两种输入。"""
     agent = create_agent(AgentBackend.QCODER)
-    response = agent.run("字符串输入")
-    print(f"[入口2] run(str)   -> {response.content}")
-    response = agent.run([AgentMessage(role=MessageRole.USER, content="消息列表输入")])
-    print(f"[入口2] run(list)  -> {response.content}")
+    try:
+        response = agent.run("字符串输入")
+        print(f"[入口2] run(str)   -> {response.content}")
+        response = agent.run([AgentMessage(role=MessageRole.USER, content="消息列表输入")])
+        print(f"[入口2] run(list)  -> {response.content}")
+    except Exception as exc:  # noqa: BLE001 - 未安装 qodercli / 未登录时提示
+        print(f"[入口2] 跳过 qcoder 真实调用（需 qodercli 并登录）: {type(exc).__name__}")
 
 
 def demo_run_with_config() -> None:
@@ -75,25 +78,31 @@ def demo_run_with_config() -> None:
         ),
     )
     print("[入口3] 构造时配置 -> run() 使用默认 config:")
-    print(f"    -> {agent.run('hello').content}")
+    try:
+        print(f"    -> {agent.run('hello').content}")
 
-    override = AgentConfig(
-        system_prompt="Override.",
-        hooks=[AuditHooks(), ModifyHooks()],
-    )
-    print("[入口3] 调用时配置 -> run(input, AgentConfig(...)) 按次覆盖:")
-    print(f"    -> {agent.run('原始 prompt', override).content}")
+        override = AgentConfig(
+            system_prompt="Override.",
+            hooks=[AuditHooks(), ModifyHooks()],
+        )
+        print("[入口3] 调用时配置 -> run(input, AgentConfig(...)) 按次覆盖:")
+        print(f"    -> {agent.run('原始 prompt', override).content}")
+    except Exception as exc:  # noqa: BLE001 - 未安装 qodercli / 未登录时提示
+        print(f"[入口3] 跳过 qcoder 真实调用（需 qodercli 并登录）: {type(exc).__name__}")
 
 
 async def demo_stream() -> None:
     """入口 4：异步流式 stream 逐块消费。"""
     agent = create_agent(AgentBackend.QCODER)
     print("[入口4] stream 流式调用:")
-    async for chunk in agent.stream("流式调用"):
-        if chunk.delta_content:
-            print(chunk.delta_content, end="")
-        if chunk.is_finish:
-            print(" [finish]")
+    try:
+        async for chunk in agent.stream("流式调用"):
+            if chunk.delta_content:
+                print(chunk.delta_content, end="")
+            if chunk.is_finish:
+                print(" [finish]")
+    except Exception as exc:  # noqa: BLE001 - 未安装 qodercli / 未登录时提示
+        print(f"跳过 qcoder 真实调用（需 qodercli 并登录）: {type(exc).__name__}")
 
 
 def demo_hooks_lifecycle() -> None:
@@ -120,8 +129,11 @@ def demo_hooks_lifecycle() -> None:
             events.append("afterStop")
 
     agent = create_agent(AgentBackend.QCODER, AgentConfig(hooks=TrackingHooks()))
-    agent.run("hello")
-    print(f"[入口5] hooks 事件顺序 -> {' → '.join(events)}")
+    try:
+        agent.run("hello")
+        print(f"[入口5] hooks 事件顺序 -> {' → '.join(events)}")
+    except Exception as exc:  # noqa: BLE001 - 未安装 qodercli / 未登录时提示
+        print(f"[入口5] 跳过 qcoder 真实调用（需 qodercli 并登录）: {type(exc).__name__}")
 
 
 def demo_unknown_backend() -> None:

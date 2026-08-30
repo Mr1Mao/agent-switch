@@ -1,4 +1,4 @@
-"""适配器 hooks 生命周期测试（qcoder stub 后端）。"""
+"""适配器 hooks 生命周期测试（qcoder 后端，mock SDK 调用点）。"""
 
 import pytest
 
@@ -49,26 +49,26 @@ def _tracking_hooks(events: list[str]) -> BaseAgentHooks:
     return TrackingHooks()
 
 
-def test_qcoder_run_triggers_six_events():
-    """qcoder run 按顺序触发 6 个阶段事件。"""
+def test_qcoder_run_triggers_six_events(qcoder_fake_query):
+    """qcoder run 按顺序触发 6 个阶段事件（fake query 回显输入）。"""
     events: list[str] = []
     agent = create_agent(AgentBackend.QCODER, AgentConfig(hooks=_tracking_hooks(events)))
     response = agent.run("hello")
-    assert "[stub]" in response.content
+    assert "[stub] hello" in response.content
     assert events == EXPECTED_SIX_EVENTS
 
 
-async def test_qcoder_stream_triggers_six_events():
+async def test_qcoder_stream_triggers_six_events(qcoder_fake_query):
     """qcoder stream 同样按顺序触发 6 个阶段事件。"""
     events: list[str] = []
     agent = create_agent(AgentBackend.QCODER, AgentConfig(hooks=_tracking_hooks(events)))
     chunks = [chunk async for chunk in agent.stream("hello")]
-    assert len(chunks) == 5
+    assert chunks[-1].is_finish is True
     assert events == EXPECTED_SIX_EVENTS
 
 
 def test_block_before_prompt_raises_hook_blocked_error():
-    """BLOCK 抛 HookBlockedError，携带事件与 reason。"""
+    """BLOCK 抛 HookBlockedError，携带事件与 reason（在调用 SDK 前即中止）。"""
 
     class BlockHooks(BaseAgentHooks):
         async def before_prompt(self, context):
@@ -81,8 +81,8 @@ def test_block_before_prompt_raises_hook_blocked_error():
     assert exc_info.value.reason == "no thank you"
 
 
-def test_modify_before_prompt_rewrites_prompt():
-    """MODIFY 改写 prompt 后，stub 回复内容体现修改后的消息。"""
+def test_modify_before_prompt_rewrites_prompt(qcoder_fake_query):
+    """MODIFY 改写 prompt 后，fake query 回显的回复体现修改后的消息。"""
 
     class ModifyHooks(BaseAgentHooks):
         async def before_prompt(self, context):
@@ -101,7 +101,7 @@ def test_modify_before_prompt_rewrites_prompt():
     assert "original prompt" not in response.content
 
 
-def test_multiple_hooks_follow_config_order():
+def test_multiple_hooks_follow_config_order(qcoder_fake_query):
     """多个 hooks 按 config 中的顺序执行（同一事件内亦按序）。"""
     order: list[str] = []
 

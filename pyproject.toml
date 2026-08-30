@@ -45,6 +45,7 @@ dev = [
     "ruff>=0.6",
     "deepagents",
     "langchain-deepseek>=0.1.0",
+    "qoder-agent-sdk",
     "python-dotenv>=1.0",
 ]
 

@@ -13,7 +13,7 @@ from agent_core import AgentBackend, AgentMessage, MessageRole, create_agent
 
 
 def demo_sync_run() -> None:
-    """同步 run：DEEPAGENTS（真实 SDK）与 QCODER（stub）。"""
+    """同步 run：DEEPAGENTS（真实 SDK）与 QCODER（真实 qoder-agent-sdk）。"""
     # DEEPAGENTS：需要已安装 deepagents 且配置了模型/凭据
     # （pip install 'agent-core[deepagents]'；通过 AgentConfig.extra["model"]
     #   传入已构建的 ChatModel，或用 config/deepseek_flash.py 从环境变量构建）。
@@ -24,10 +24,13 @@ def demo_sync_run() -> None:
     except Exception as exc:  # noqa: BLE001 - 未配置模型/凭据时给出提示，不影响其余演示
         print(f"[deepagents] 跳过真实调用（需要配置模型与凭据）: {type(exc).__name__}")
 
-    # QCODER：当前为 stub 实现，无需安装 SDK
+    # QCODER：真实 qoder-agent-sdk（需安装 qodercli 并登录，pip install 'agent-core[qcoder]'）
     qcoder_agent = create_agent(AgentBackend.QCODER)
-    response = qcoder_agent.run([AgentMessage(role=MessageRole.USER, content="讲个笑话")])
-    print("[qcoder]", response.content)
+    try:
+        response = qcoder_agent.run([AgentMessage(role=MessageRole.USER, content="讲个笑话")])
+        print("[qcoder]", response.content)
+    except Exception as exc:  # noqa: BLE001 - 未安装 qodercli / 未登录时给出提示
+        print(f"[qcoder] 跳过真实调用（需要 qodercli 并登录）: {type(exc).__name__}")
 
 
 async def demo_stream() -> None:

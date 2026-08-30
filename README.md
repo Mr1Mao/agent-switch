@@ -25,21 +25,24 @@ your upper-layer types or call sites.
 pip install agent-core
 # or with extras
 pip install "agent-core[deepagents]"    # deepagents backend
-pip install "agent-core[qcoder]"        # qcoder backend (stub for now)
+pip install "agent-core[qcoder]"        # qcoder backend (qoder-agent-sdk)
 pip install "agent-core[all]"
 ```
+
+> The `qcoder` backend runs the real `qoder-agent-sdk`, which spawns the
+> `qodercli` CLI. Install the CLI and log in once (`qodercli auth`) before use.
 
 ## Quick start
 
 ```python
 from agent_core import AgentConfig, AgentMessage, MessageRole, create_agent, AgentBackend
 
-# qcoder is a stub backend — great for testing hooks & streaming without an SDK
+# qcoder runs on the real qoder-agent-sdk (needs `qodercli` installed & logged in)
 config = AgentConfig(system_prompt="Be concise.")
 agent = create_agent(AgentBackend.QCODER, config)
 
 response = agent.run("Tell me a joke")
-print(response.content)  # [stub] Tell me a joke
+print(response.content)
 
 async def demo_stream() -> None:
     async for chunk in agent.stream("Hello"):
@@ -81,6 +84,84 @@ response = agent.run("What is the weather in Paris?")
 Alternatively let agent-core build the model: `AgentModel(name=..., api_key=..., base_url=...)`
 maps to `langchain.chat_models.init_chat_model`, while a bare `AgentModel(name="openai:gpt-4o-mini")`
 passes the string straight through.
+
+## Qcoder ↔ agent-core mapping
+
+The `qcoder` backend runs on the real `qoder-agent-sdk` (which drives the
+`qodercli` CLI). It supports message format normalization, the unified hooks
+lifecycle, streaming, tools / skills / MCP configuration, and session identity.
+
+### Message normalization
+
+Input direction (`AgentMessage` → qoder CLI wire format, via
+`agent_core.backends.qcoder.mapping.agent_messages_to_qoder_wire`):
+
+| agent-core                | qoder wire                                                    |
+| ------------------------- | ------------------------------------------------------------- |
+| `MessageRole.USER`        | `{"type":"user","message":{"role":"user","content":<str>}}`   |
+| `MessageRole.ASSISTANT`   | text + `tool_use` blocks (`{"type":"tool_use","id","name","input"}`) in one `user` message |
+| `MessageRole.TOOL`        | `{"type":"tool_result","tool_use_id","content","is_error"}` block |
+| `MessageRole.SYSTEM`      | not sent (mapped to `QoderAgentOptions.system_prompt`)        |
+| `thinking` / `meta`       | not sent (input direction)                                    |
+
+Output direction (qoder SDK `Message` → `AgentMessage`):
+
+| qoder SDK                 | agent-core                              |
+| ------------------------- | --------------------------------------- |
+| `AssistantMessage`        | `role=assistant`, `content` (joined `TextBlock`s) |
+| `ThinkingBlock`           | `thinking`                              |
+| `ToolUseBlock`            | `ToolCall(id, name, input→arguments)`   |
+| `UserMessage`             | `role=user`                             |
+| `SystemMessage`           | `role=system` (only `meta`)             |
+| `ResultMessage`           | terminal → `AgentResponse` (content, raw, backend) |
+
+### Hooks mapping
+
+Session-level events (`beforeAgent` / `beforePrompt` / `beforeLLM` / `afterLLM` /
+`afterAgent` / `afterStop`) fire at the adapter level once per `run` / `stream`,
+exactly as documented in the Hooks chapter. Call-level events are bridged into
+the Qoder SDK native hook system:
+
+| agent-core hook      | Qoder HookEvent      | BLOCK / MODIFY mapping                              |
+| -------------------- | -------------------- | --------------------------------------------------- |
+| `beforeTool`         | `PreToolUse`         | BLOCK → `continue_:False, decision:"block"` + `permissionDecision:"deny"`; MODIFY(`updated_input`) → `updatedInput` |
+| `afterTool`          | `PostToolUse`        | MODIFY(`updated_tool_output`) → `updatedToolOutput` |
+| `afterToolError`     | `PostToolUseFailure` | notification only                                   |
+| `beforePermission`   | `PermissionRequest`  | BLOCK → `permissionDecision:"deny"`                 |
+| `beforeSubagent`     | `SubagentStart`      | notification only                                   |
+| `afterSubagent`      | `SubagentStop`       | notification only                                   |
+
+Only events whose hook class actually overrides the method are registered, so an
+empty hooks list adds no callbacks to the CLI.
+
+### Configuration mapping (`AgentConfig` → `QoderAgentOptions`)
+
+| agent-core              | QoderAgentOptions                                    |
+| ----------------------- | ---------------------------------------------------- |
+| `AgentModel.name` / `extra["model"]` (str) | `model`                       |
+| `system_prompt`         | `system_prompt`                                      |
+| `tools` (with `handler`) | in-process SDK MCP server via `create_sdk_mcp_server` + `allowed_tools` |
+| `skills`                | `skills` (`sources` list / `enable_all` → `"all"`)   |
+| `mcp` (`AgentMcpConfig`) | `mcp_servers` (stdio / http) + `allowed_mcp_server_names` |
+| `extra` whitelist       | `permission_mode, max_turns, session_id, cwd, auth, allowed_tools, disallowed_tools, can_use_tool, include_partial_messages, continue_conversation, resume, settings, agents, agent, user, env, cli_path` |
+| default                 | `auth=qodercli_auth()` (reuse local login state)     |
+
+### Streaming
+
+`stream()` iterates `qoder_agent_sdk.query(prompt=wire_messages, options=...)`;
+each SDK `AssistantMessage` is mapped to one or more `AgentChunk`
+(`delta_thinking` / `delta_content` / `delta_tool_call`), and the stream always
+ends with a chunk carrying `is_finish=True`. `run()` wraps the same async flow
+with `asyncio.run` and returns the terminal `ResultMessage` as `AgentResponse`
+(falling back to the accumulated assistant text if no result message arrives).
+Token-level partial messages (`StreamEvent`) are not enabled by default.
+
+### Runtime requirements
+
+- `pip install "agent-core[qcoder]"` (pulls `qoder-agent-sdk`, `mcp`, `anyio`)
+- Install the `qodercli` CLI and log in once (`qodercli auth`)
+- Sync `run()` uses `asyncio.run` internally: calling it inside a running event
+  loop raises `RuntimeError` — use `stream()` in async code.
 
 ## Hooks
 
@@ -124,8 +205,13 @@ Hooks fire on two layers:
   `run` / `stream` boundary — `after_agent` only runs on the success path, so the
   adapter re-fires `afterAgent(error)` + `afterStop(error)` when the run fails.
 
-For stub backends (`qcoder`) all six events fire once per run at the adapter level.
-`beforePermission / beforeSubagent / afterSubagent` are declared but not yet bridged.
+For the `qcoder` backend, the six session-level events fire at the adapter level
+(one per `run` / `stream`), while `beforeTool` / `afterTool` / `afterToolError` /
+`beforePermission` / `beforeSubagent` / `afterSubagent` are bridged to the Qoder
+SDK's native hooks (`PreToolUse` / `PostToolUse` / `PostToolUseFailure` /
+`PermissionRequest` / `SubagentStart` / `SubagentStop`) and fire inside the CLI.
+`beforePermission / beforeSubagent / afterSubagent` are declared but not yet
+bridged for the `deepagents` backend.
 
 ### Hooks ↔ deepagents implementation mapping
 
@@ -212,20 +298,20 @@ extracted on the way back.
 
 - [x] Type system & unified API (`create_agent` / `run` / `stream`)
 - [x] `deepagents` backend (real implementation, lazy import)
-- [x] `qcoder` backend (stub adapter, hooks + streaming demo)
+- [x] `qcoder` backend (real implementation on `qoder-agent-sdk`: message normalization, hooks bridging, streaming, tools / skills / MCP)
 - [x] Hooks lifecycle (12 events, BLOCK / MODIFY)
 - [x] deepagents call-level hook bridging via `AgentHooksMiddleware` (`beforeLLM` / `afterLLM` / `beforeTool` / `afterTool` / `afterToolError`)
+- [x] qcoder call-level hook bridging via Qoder native hooks (`PreToolUse` / `PostToolUse` / `PostToolUseFailure` / `PermissionRequest` / `SubagentStart` / `SubagentStop`)
 - [x] Structured logging (redaction, Dev / JSON formatters)
-- [ ] `beforePermission` / `beforeSubagent` / `afterSubagent` bridging
-- [ ] Real Qcoder SDK integration
-- [ ] MCP server wiring
+- [ ] `beforePermission` / `beforeSubagent` / `afterSubagent` bridging for the `deepagents` backend
+- [ ] Token-level partial message streaming for `qcoder` (`StreamEvent`)
+- [ ] Qoder `QoderSDKClient` bidirectional / interrupt support
 
 ## Roadmap
 
-1. Bridge the remaining `beforePermission` / `beforeSubagent` / `afterSubagent` events.
-2. Implement the real `qcoder` backend on `qoder-agent-sdk`.
-3. Add per-backend capability introspection (`supports_*` flags).
-4. Officially type the public API against the dev extras' SDK versions.
+1. Bridge the remaining `beforePermission` / `beforeSubagent` / `afterSubagent` events for `deepagents`.
+2. Add per-backend capability introspection (`supports_*` flags).
+3. Officially type the public API against the dev extras' SDK versions.
 
 ## Development
 
@@ -250,7 +336,7 @@ src/agent_core/
 ├── hooks/            # enums, context, result, dispatcher, emitter, base
 ├── types/            # unified type system
 ├── utils/            # input normalization
-└── backends/         # stub, qcoder, deepagents (adapter + mapping)
+└── backends/         # stub, qcoder, deepagents (adapter + mapping + hooks bridge)
 ```
 
 ## License

@@ -23,21 +23,24 @@
 pip install agent-core
 # 或按需安装额外依赖
 pip install "agent-core[deepagents]"    # deepagents 后端
-pip install "agent-core[qcoder]"        # qcoder 后端（当前为 stub）
+pip install "agent-core[qcoder]"        # qcoder 后端（qoder-agent-sdk）
 pip install "agent-core[all]"
 ```
+
+> `qcoder` 后端运行真实的 `qoder-agent-sdk`（内部拉起 `qodercli` CLI）。
+> 使用前需先安装 `qodercli` 并登录一次（`qodercli auth`）。
 
 ## Quick start
 
 ```python
 from agent_core import AgentConfig, AgentMessage, MessageRole, create_agent, AgentBackend
 
-# qcoder 是 stub 后端——无需 SDK 即可测试 hooks 与流式行为
+# qcoder 运行在真实的 qoder-agent-sdk 上（需安装 qodercli 并登录）
 config = AgentConfig(system_prompt="Be concise.")
 agent = create_agent(AgentBackend.QCODER, config)
 
 response = agent.run("Tell me a joke")
-print(response.content)  # [stub] Tell me a joke
+print(response.content)
 
 async def demo_stream() -> None:
     async for chunk in agent.stream("Hello"):
@@ -79,6 +82,80 @@ response = agent.run("What is the weather in Paris?")
 会映射到 `langchain.chat_models.init_chat_model`；只有 `AgentModel(name="openai:gpt-4o-mini")`
 （无 key/url）时则直接把模型名字符串透传给 deepagents。
 
+## Qcoder ↔ agent-core 映射
+
+`qcoder` 后端运行在真实的 `qoder-agent-sdk` 上（由 SDK 拉起 `qodercli` CLI），
+支持消息格式归一化、统一 hooks 生命周期、流式、tools/skills/MCP 配置与会话标识。
+
+### 消息归一化
+
+输入方向（`AgentMessage` → qoder CLI wire 格式，见
+`agent_core.backends.qcoder.mapping.agent_messages_to_qoder_wire`）：
+
+| agent-core                | qoder wire                                                    |
+| ------------------------- | ------------------------------------------------------------- |
+| `MessageRole.USER`        | `{"type":"user","message":{"role":"user","content":<str>}}`   |
+| `MessageRole.ASSISTANT`   | 文本 + `tool_use` 块（`{"type":"tool_use","id","name","input"}`）合并进一条 `user` 消息 |
+| `MessageRole.TOOL`        | `{"type":"tool_result","tool_use_id","content","is_error"}` 块 |
+| `MessageRole.SYSTEM`      | 不进 wire（映射到 `QoderAgentOptions.system_prompt`）         |
+| `thinking` / `meta`       | 不发送（输入方向）                                            |
+
+输出方向（qoder SDK `Message` → `AgentMessage`）：
+
+| qoder SDK                 | agent-core                              |
+| ------------------------- | --------------------------------------- |
+| `AssistantMessage`        | `role=assistant`，`content`（`TextBlock` 拼接） |
+| `ThinkingBlock`           | `thinking`                              |
+| `ToolUseBlock`            | `ToolCall(id, name, input→arguments)`   |
+| `UserMessage`             | `role=user`                             |
+| `SystemMessage`           | `role=system`（仅 `meta`）              |
+| `ResultMessage`           | 终结消息 → `AgentResponse`（content, raw, backend） |
+
+### hooks 映射
+
+会话级事件（`beforeAgent` / `beforePrompt` / `beforeLLM` / `afterLLM` /
+`afterAgent` / `afterStop`）在 adapter 层每次 run / stream 触发一次（见 Hooks
+章节）；调用级事件桥接到 Qoder SDK 原生 hooks：
+
+| agent-core hook      | Qoder HookEvent      | BLOCK / MODIFY 映射                                   |
+| -------------------- | -------------------- | ----------------------------------------------------- |
+| `beforeTool`         | `PreToolUse`         | BLOCK → `continue_:False, decision:"block"` + `permissionDecision:"deny"`；MODIFY(`updated_input`) → `updatedInput` |
+| `afterTool`          | `PostToolUse`        | MODIFY(`updated_tool_output`) → `updatedToolOutput`   |
+| `afterToolError`     | `PostToolUseFailure` | 仅通知                                                |
+| `beforePermission`   | `PermissionRequest`  | BLOCK → `permissionDecision:"deny"`                   |
+| `beforeSubagent`     | `SubagentStart`      | 仅通知                                                |
+| `afterSubagent`      | `SubagentStop`       | 仅通知                                                |
+
+只有「hook 类实际覆写了对应方法」的事件才会注册，空 hooks 不会给 CLI 增加回调。
+
+### 配置映射（`AgentConfig` → `QoderAgentOptions`）
+
+| agent-core              | QoderAgentOptions                                    |
+| ----------------------- | ---------------------------------------------------- |
+| `AgentModel.name` / `extra["model"]`（str） | `model`                     |
+| `system_prompt`         | `system_prompt`                                      |
+| `tools`（带 `handler`） | 进程内 SDK MCP server（`create_sdk_mcp_server`）+ `allowed_tools` |
+| `skills`                | `skills`（`sources` 列表 / `enable_all` → `"all"`）  |
+| `mcp`（`AgentMcpConfig`）| `mcp_servers`（stdio / http）+ `allowed_mcp_server_names` |
+| `extra` 白名单          | `permission_mode, max_turns, session_id, cwd, auth, allowed_tools, disallowed_tools, can_use_tool, include_partial_messages, continue_conversation, resume, settings, agents, agent, user, env, cli_path` |
+| 默认                    | `auth=qodercli_auth()`（复用本机登录态）              |
+
+### Streaming
+
+`stream()` 迭代 `qoder_agent_sdk.query(prompt=wire_messages, options=...)`；
+每条 SDK `AssistantMessage` 映射为一个或多个 `AgentChunk`
+（`delta_thinking` / `delta_content` / `delta_tool_call`），流结束前总会 yield
+一条 `is_finish=True`。`run()` 用 `asyncio.run` 包装同一异步流程，以终结消息
+`ResultMessage` 作为 `AgentResponse` 返回（未收到终结消息时回退为累计的
+assistant 文本）。token 级 partial 消息（`StreamEvent`）默认不启用。
+
+### 运行前提
+
+- `pip install "agent-core[qcoder]"`（连带安装 `qoder-agent-sdk`、`mcp`、`anyio`）
+- 安装 `qodercli` CLI 并登录一次（`qodercli auth`）
+- 同步 `run()` 内部使用 `asyncio.run`：在运行中的事件循环里调用会抛
+  `RuntimeError` —— 异步场景请用 `stream()`
+
 ## Hooks
 
 ```python
@@ -119,8 +196,12 @@ hooks 分两层触发：
   `after_agent` 只在成功路径执行，因此运行失败时 adapter 会补发
   `afterAgent(error)` + `afterStop(error)`。
 
-stub 后端（`qcoder`）的全部 6 个事件在 adapter 层每次 run 触发一次。
-`beforePermission / beforeSubagent / afterSubagent` 已声明但尚未桥接。
+`qcoder` 后端：会话级 6 个事件在 adapter 层每次 run / stream 触发一次；
+`beforeTool / afterTool / afterToolError / beforePermission / beforeSubagent /
+afterSubagent` 桥接到 Qoder SDK 原生 hooks（`PreToolUse` / `PostToolUse` /
+`PostToolUseFailure` / `PermissionRequest` / `SubagentStart` / `SubagentStop`），
+在 CLI 内部触发。`beforePermission / beforeSubagent / afterSubagent` 在
+`deepagents` 后端已声明但尚未桥接。
 
 ### Hooks ↔ deepagents 实现映射
 
@@ -205,20 +286,20 @@ async for chunk in agent.stream("hello"):
 
 - [x] 类型系统与统一 API（`create_agent` / `run` / `stream`）
 - [x] `deepagents` 后端（真实实现，延迟导入）
-- [x] `qcoder` 后端（stub 适配器，hooks + 流式演示）
+- [x] `qcoder` 后端（基于 `qoder-agent-sdk` 的真实实现：消息归一化、hooks 桥接、流式、tools/skills/MCP）
 - [x] Hooks 生命周期（12 事件，BLOCK / MODIFY）
 - [x] deepagents 调用级事件中间件桥接（`beforeLLM` / `afterLLM` / `beforeTool` / `afterTool` / `afterToolError`）
+- [x] qcoder 调用级事件原生 hooks 桥接（`PreToolUse` / `PostToolUse` / `PostToolUseFailure` / `PermissionRequest` / `SubagentStart` / `SubagentStop`）
 - [x] 结构化日志（脱敏、Dev / JSON Formatter）
-- [ ] `beforePermission` / `beforeSubagent` / `afterSubagent` 桥接
-- [ ] 真实 Qcoder SDK 集成
-- [ ] MCP server 接线
+- [ ] `deepagents` 后端桥接剩余 `beforePermission` / `beforeSubagent` / `afterSubagent` 事件
+- [ ] qcoder token 级 partial 消息流式（`StreamEvent`）
+- [ ] Qoder `QoderSDKClient` 双向会话 / 打断支持
 
 ## Roadmap
 
-1. 桥接剩余 `beforePermission` / `beforeSubagent` / `afterSubagent` 事件。
-2. 基于 `qoder-agent-sdk` 实现真实 qcoder 后端。
-3. 增加按后端的 capability 自省（`supports_*` 标志）。
-4. 针对 dev extras 的 SDK 版本固化公共 API 的类型契约。
+1. 为 `deepagents` 桥接剩余 `beforePermission` / `beforeSubagent` / `afterSubagent` 事件。
+2. 增加按后端的 capability 自省（`supports_*` 标志）。
+3. 针对 dev extras 的 SDK 版本固化公共 API 的类型契约。
 
 ## Development
 
@@ -243,7 +324,7 @@ src/agent_core/
 ├── hooks/            # enums, context, result, dispatcher, emitter, base
 ├── types/            # 统一类型系统
 ├── utils/            # 输入归一化
-└── backends/         # stub, qcoder, deepagents（adapter + mapping）
+└── backends/         # stub, qcoder, deepagents（adapter + mapping + hooks 桥接）
 ```
 
 ## License

@@ -51,13 +51,11 @@ def test_deepagents_run_with_mocked_build_agent():
     assert response.message.role == "assistant"
 
 
-async def test_qcoder_stream_yields_five_chunks():
-    """qcoder stream：思考 → 正文×2 → tool_call → is_finish，共 5 条 chunk。"""
+async def test_qcoder_stream_yields_chunks_and_finish(qcoder_fake_query):
+    """qcoder stream：mock _query_impl 后验证 AgentChunk 映射与 is_finish。"""
     agent = create_agent(AgentBackend.QCODER)
     chunks = [chunk async for chunk in agent.stream("hello")]
-    assert len(chunks) == 5
-    assert chunks[0].delta_thinking == "[stub] thinking..."
-    assert chunks[1].delta_content != "" and chunks[2].delta_content != ""
-    assert chunks[3].delta_tool_call is not None
-    assert chunks[3].delta_tool_call.name == "stub_echo"
-    assert chunks[4].is_finish is True
+    assert chunks[-1].is_finish is True
+    # fake query 回显输入文本 → 一条 delta_content，随后 ResultMessage 终结
+    assert chunks[0].delta_content == "[stub] hello"
+    assert len(chunks) == 2

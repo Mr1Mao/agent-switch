@@ -298,34 +298,6 @@ The stream always ends with a chunk carrying `is_finish=True`.
 `thinking` / `meta` are **not** sent to the backend (input direction); they are only
 extracted on the way back.
 
-## Publishing
-
-Releases are published to PyPI automatically from GitHub Actions via
-**Trusted Publishing (OIDC)** — no API token needed after the one-time setup.
-
-**One-time setup (PyPI website, logged in):**
-1. Open https://pypi.org/manage/account/publishing/ → **Add a pending publisher**
-2. Fill in:
-   - Owner: `Mr1Mao`
-   - Repository: `agent-core` (use the actual repo name; if you rename the repo, re-add the publisher with the new name)
-   - Workflow filename: `release.yml`
-   - Environment: leave empty
-3. Save. The `.github/workflows/release.yml` workflow does the rest.
-
-**Release flow (after setup):**
-```bash
-# 1. bump the version in pyproject.toml
-# 2. commit and tag
-git add -A && git commit -m "release v0.2.0"
-git tag v0.2.0
-git push origin main --tags
-# 3. GitHub Actions builds wheel + sdist and publishes to PyPI automatically
-```
-
-You can also trigger a release manually from the Actions tab
-(`workflow_dispatch`). The workflow never stores or sends a token — it uses
-GitHub's OIDC identity, which PyPI verifies against the pending publisher.
-
 ## License
 
 MIT

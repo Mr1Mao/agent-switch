@@ -286,33 +286,6 @@ async for chunk in agent.stream("hello"):
 
 `thinking` / `meta` **不会**发送给后端（输入方向）；仅在回程时提取。
 
-## 发布
-
-新版本通过 GitHub Actions 自动发布到 PyPI，采用 **Trusted Publishing（OIDC）**——
-一次性配置后，后续发布**不再需要 API token**。
-
-**一次性配置（PyPI 网页，需登录）：**
-1. 打开 https://pypi.org/manage/account/publishing/ → **Add a pending publisher**
-2. 填写：
-   - Owner：`Mr1Mao`
-   - Repository：`agent-core`（以实际仓库名为准；若以后改仓库名需用新名重新添加）
-   - Workflow filename：`release.yml`
-   - Environment：留空
-3. 保存即可。仓库里的 `.github/workflows/release.yml` 负责后续构建与发布。
-
-**发布流程（配置之后）：**
-```bash
-# 1. 更新 pyproject.toml 的 version（如 0.2.0）
-# 2. 提交并打 tag
-git add -A && git commit -m "release v0.2.0"
-git tag v0.2.0
-git push origin main --tags
-# 3. GitHub Actions 自动构建 wheel + sdist 并发布到 PyPI
-```
-
-也可以在 Actions 页面手动触发（`workflow_dispatch`）。整个流程不保存、不发送
-token —— 使用 GitHub 的 OIDC 身份，由 PyPI 对照 pending publisher 声明校验。
-
 ## License
 
 MIT

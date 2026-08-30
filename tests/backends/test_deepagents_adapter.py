@@ -2,7 +2,7 @@
 
 from langchain_core.messages import AIMessage, AIMessageChunk
 
-from agent_core import AgentBackend, AgentConfig, AgentResponse, BaseAgentHooks, create_agent
+from agent_switch import AgentBackend, AgentConfig, AgentResponse, BaseAgentHooks, create_agent
 
 
 def _fake_graph():

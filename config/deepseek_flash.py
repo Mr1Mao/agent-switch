@@ -14,7 +14,7 @@ try:  # python-dotenv 为可选依赖
 except ImportError:  # pragma: no cover - 未安装时静默跳过
     pass
 
-from agent_core import AgentConfig, AgentModel
+from agent_switch import AgentConfig, AgentModel
 
 #: DeepSeek Flash 默认模型引用（deepagents 可直接透传的模型名字符串）
 DEFAULT_DEEPSEEK_MODEL_REF = "deepseek:deepseek-v4-flash"

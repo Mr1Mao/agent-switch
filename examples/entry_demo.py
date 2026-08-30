@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import asyncio
 
-from agent_core import (
+from agent_switch import (
     AgentBackend,
     AgentConfig,
     AgentMessage,

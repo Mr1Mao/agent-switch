@@ -4,7 +4,7 @@ import json
 import logging
 import re
 
-from agent_core import (
+from agent_switch import (
     AgentConfig,
     AgentMcpConfig,
     AgentMcpServer,
@@ -15,7 +15,7 @@ from agent_core import (
     AgentTool,
     MessageRole,
 )
-from agent_core.logging import (
+from agent_switch.logging import (
     AgentCoreDevFormatter,
     AgentCoreJsonFormatter,
     configure_logging,
@@ -27,10 +27,10 @@ from agent_core.logging import (
 
 
 def test_get_logger_returns_namespaced_logger():
-    """get_logger 返回 agent_core 命名空间下的 Logger。"""
-    logger = get_logger("agent_core.factory")
+    """get_logger 返回 agent_switch 命名空间下的 Logger。"""
+    logger = get_logger("agent_switch.factory")
     assert isinstance(logger, logging.Logger)
-    assert logger.name == "agent_core.factory"
+    assert logger.name == "agent_switch.factory"
 
 
 def test_log_fields_redacts_sensitive_keys():
@@ -40,7 +40,7 @@ def test_log_fields_redacts_sensitive_keys():
         api_key="sk-123",
         nested={"token": "abc", "ok": 1},
     )
-    payload = fields["agent_core"]
+    payload = fields["agent_switch"]
     assert payload["backend"] == "deepagents"
     assert payload["api_key"] == "<redacted>"
     assert payload["nested"]["token"] == "<redacted>"
@@ -93,21 +93,21 @@ def test_summarize_input_preview_truncated_to_120():
 
 
 def test_configure_logging_dev_and_json_formatters():
-    """configure_logging 配置 agent_core logger：级别、propagate、Dev/JSON Formatter。"""
+    """configure_logging 配置 agent_switch logger：级别、propagate、Dev/JSON Formatter。"""
     logger = configure_logging(level=logging.DEBUG, json=False)
-    assert logger.name == "agent_core"
+    assert logger.name == "agent_switch"
     assert logger.level == logging.DEBUG
     assert logger.propagate is False
     assert isinstance(logger.handlers[-1].formatter, AgentCoreDevFormatter)
 
     record = logging.LogRecord(
-        "agent_core.factory", logging.INFO, "factory.py", 1, "agent.create.start", None, None
+        "agent_switch.factory", logging.INFO, "factory.py", 1, "agent.create.start", None, None
     )
-    setattr(record, "agent_core", {"backend": "deepagents"})
+    setattr(record, "agent_switch", {"backend": "deepagents"})
     line = logger.handlers[-1].formatter.format(record)
     assert re.match(
         r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z "
-        r"INFO \[agent_core\.factory\] agent\.create\.start backend=deepagents$",
+        r"INFO \[agent_switch\.factory\] agent\.create\.start backend=deepagents$",
         line,
     )
 
@@ -117,6 +117,6 @@ def test_configure_logging_dev_and_json_formatters():
     json_line = logger.handlers[-1].formatter.format(record)
     parsed = json.loads(json_line)
     assert parsed["severity"] == "INFO"
-    assert parsed["logger"] == "agent_core.factory"
+    assert parsed["logger"] == "agent_switch.factory"
     assert parsed["message"] == "agent.create.start"
     assert parsed["backend"] == "deepagents"

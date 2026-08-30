@@ -1,0 +1,62 @@
+# 通过 GitHub Actions 自动发布到 PyPI（Trusted Publishing / OIDC，无需 API token）
+#
+# 触发方式：
+#   1. 在 pyproject.toml 更新 version（如 0.2.0）
+#   2. git commit && git tag v0.2.0 && git push origin v0.2.0
+#   3. Actions 自动构建 wheel + sdist 并发布到 PyPI
+#   也可以在仓库 Actions 页面手动运行（workflow_dispatch）。
+#
+# 一次性配置（在 PyPI 网页操作，需登录）：
+#   https://pypi.org/manage/account/publishing/  → Add a pending publisher
+#     - Owner: Mr1Mao
+#     - Repository: agent-core
+#     - Workflow filename: release.yml
+#     - Environment: 留空
+#   注意：本 workflow 的 publish job 未声明 environment，请与上述留空保持一致。
+#   若以后把仓库改名为 agent-switch，需用新仓库名重新添加 pending publisher。
+
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write # OIDC：供 PyPI Trusted Publishing 校验，无需明文 token
+
+jobs:
+  build:
+    name: Build wheel & sdist
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install build backend
+        run: python -m pip install --upgrade build
+      - name: Build distributions
+        run: python -m build
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    name: Publish to PyPI
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        # 不传 token：gh-action-pypi-publish 通过 id-token (OIDC) 自动认证，
+        # PyPI 侧校验 pending publisher 声明（owner/repo/workflow）后放行。

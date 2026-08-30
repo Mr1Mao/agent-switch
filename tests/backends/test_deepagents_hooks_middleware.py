@@ -6,12 +6,12 @@ import pytest
 from langchain.agents.middleware.types import ModelResponse
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
-from agent_core import AgentBackend, AgentConfig, AgentMessage, HookBlockedError, MessageRole, create_agent
-from agent_core.backends.deepagents.hooks_middleware import AgentHooksMiddleware
-from agent_core.hooks.base import BaseAgentHooks
-from agent_core.hooks.dispatcher import AgentHooksDispatcher
-from agent_core.hooks.enums import AgentHookEvent
-from agent_core.hooks.result import HookOutcome, HookResult
+from agent_switch import AgentBackend, AgentConfig, AgentMessage, HookBlockedError, MessageRole, create_agent
+from agent_switch.backends.deepagents.hooks_middleware import AgentHooksMiddleware
+from agent_switch.hooks.base import BaseAgentHooks
+from agent_switch.hooks.dispatcher import AgentHooksDispatcher
+from agent_switch.hooks.enums import AgentHookEvent
+from agent_switch.hooks.result import HookOutcome, HookResult
 
 
 class TrackingHooks(BaseAgentHooks):
@@ -222,8 +222,8 @@ def test_wrap_tool_call_events_and_error():
 
 def test_build_agent_injects_hooks_middleware_and_caches(monkeypatch):
     """_build_agent：配置 hooks 时注入 AgentHooksMiddleware；同一 config 复用缓存图。"""
-    from agent_core.backends import deepagents as deepagents_package
-    from agent_core.backends.deepagents import adapter as deepagents_adapter_module
+    from agent_switch.backends import deepagents as deepagents_package
+    from agent_switch.backends.deepagents import adapter as deepagents_adapter_module
 
     created: list[list[Any]] = []
 

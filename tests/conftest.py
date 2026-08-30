@@ -7,7 +7,7 @@ from typing import Any, AsyncIterator
 import pytest
 from qoder_agent_sdk.types import AssistantMessage, ResultMessage, TextBlock
 
-from agent_core.backends.qcoder.adapter import QcoderAdapter
+from agent_switch.backends.qcoder.adapter import QcoderAdapter
 
 
 async def _drain_wires(prompt: Any) -> list[dict[str, Any]]:

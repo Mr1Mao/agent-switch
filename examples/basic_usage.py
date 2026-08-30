@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import asyncio
 
-from agent_core import AgentBackend, AgentMessage, MessageRole, create_agent
+from agent_switch import AgentBackend, AgentMessage, MessageRole, create_agent
 
 
 def demo_sync_run() -> None:

@@ -1,5 +1,9 @@
 # agent-switch
 
+[![PyPI 版本](https://img.shields.io/pypi/v/agent-switch.svg)](https://pypi.org/project/agent-switch/)
+[![Python 版本](https://img.shields.io/pypi/pyversions/agent-switch.svg)](https://pypi.org/project/agent-switch/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 **Agent SDK 统一抽象层（deepagents、Qcoder SDK 等）**
 
 `agent-switch` 为业务代码提供一套稳定的统一 API（`create_agent` + `run` / `stream`），
@@ -14,8 +18,8 @@
 - **Hooks 生命周期**：12 个异步 hook 事件（`beforeAgent` … `afterStop`），支持 `BLOCK` / `MODIFY`
   结果与按 `AgentConfig` 配置的 hooks 列表。
 - **结构化日志**：自动脱敏密钥、汇总 config/input 摘要、Dev 与 JSON 两种 Formatter，
-  仅配置 `agent_core` 命名空间（不添加全局 handler）。
-- **延迟依赖**：`deepagents` 仅在真正使用 deepagents 后端时才导入；`import agent_core` 不强制要求安装。
+  仅配置 `agent_switch` 命名空间（不添加全局 handler）。
+- **延迟依赖**：`deepagents` 仅在真正使用 deepagents 后端时才导入；`import agent_switch` 不强制要求安装。
 
 ## 安装
 
@@ -33,7 +37,7 @@ pip install "agent-switch[all]"
 ## Quick start
 
 ```python
-from agent_core import AgentConfig, AgentMessage, MessageRole, create_agent, AgentBackend
+from agent_switch import AgentConfig, AgentMessage, MessageRole, create_agent, AgentBackend
 
 # qcoder 运行在真实的 qoder-agent-sdk 上（需安装 qodercli 并登录）
 config = AgentConfig(system_prompt="Be concise.")
@@ -66,7 +70,7 @@ python -m examples.deepseek_flash_usage    # 通过环境变量配置 DeepSeek F
 
 ```python
 from langchain_deepseek import ChatDeepSeek
-from agent_core import AgentConfig, create_agent, AgentBackend
+from agent_switch import AgentConfig, create_agent, AgentBackend
 
 model = ChatDeepSeek(model="deepseek-v4-flash", api_key="sk-...")
 config = AgentConfig(
@@ -90,7 +94,7 @@ response = agent.run("What is the weather in Paris?")
 ### 消息归一化
 
 输入方向（`AgentMessage` → qoder CLI wire 格式，见
-`agent_core.backends.qcoder.mapping.agent_messages_to_qoder_wire`）：
+`agent_switch.backends.qcoder.mapping.agent_messages_to_qoder_wire`）：
 
 | agent-switch                | qoder wire                                                    |
 | ------------------------- | ------------------------------------------------------------- |
@@ -159,7 +163,7 @@ assistant 文本）。token 级 partial 消息（`StreamEvent`）默认不启用
 ## Hooks
 
 ```python
-from agent_core import (
+from agent_switch import (
     AgentConfig, AgentHookEvent, BaseAgentHooks, HookOutcome, HookResult, create_agent,
 )
 
@@ -282,50 +286,32 @@ async for chunk in agent.stream("hello"):
 
 `thinking` / `meta` **不会**发送给后端（输入方向）；仅在回程时提取。
 
-## Current status
+## 发布
 
-- [x] 类型系统与统一 API（`create_agent` / `run` / `stream`）
-- [x] `deepagents` 后端（真实实现，延迟导入）
-- [x] `qcoder` 后端（基于 `qoder-agent-sdk` 的真实实现：消息归一化、hooks 桥接、流式、tools/skills/MCP）
-- [x] Hooks 生命周期（12 事件，BLOCK / MODIFY）
-- [x] deepagents 调用级事件中间件桥接（`beforeLLM` / `afterLLM` / `beforeTool` / `afterTool` / `afterToolError`）
-- [x] qcoder 调用级事件原生 hooks 桥接（`PreToolUse` / `PostToolUse` / `PostToolUseFailure` / `PermissionRequest` / `SubagentStart` / `SubagentStop`）
-- [x] 结构化日志（脱敏、Dev / JSON Formatter）
-- [ ] `deepagents` 后端桥接剩余 `beforePermission` / `beforeSubagent` / `afterSubagent` 事件
-- [ ] qcoder token 级 partial 消息流式（`StreamEvent`）
-- [ ] Qoder `QoderSDKClient` 双向会话 / 打断支持
+新版本通过 GitHub Actions 自动发布到 PyPI，采用 **Trusted Publishing（OIDC）**——
+一次性配置后，后续发布**不再需要 API token**。
 
-## Roadmap
+**一次性配置（PyPI 网页，需登录）：**
+1. 打开 https://pypi.org/manage/account/publishing/ → **Add a pending publisher**
+2. 填写：
+   - Owner：`Mr1Mao`
+   - Repository：`agent-core`（以实际仓库名为准；若以后改仓库名需用新名重新添加）
+   - Workflow filename：`release.yml`
+   - Environment：留空
+3. 保存即可。仓库里的 `.github/workflows/release.yml` 负责后续构建与发布。
 
-1. 为 `deepagents` 桥接剩余 `beforePermission` / `beforeSubagent` / `afterSubagent` 事件。
-2. 增加按后端的 capability 自省（`supports_*` 标志）。
-3. 针对 dev extras 的 SDK 版本固化公共 API 的类型契约。
-
-## Development
-
+**发布流程（配置之后）：**
 ```bash
-python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"
-
-pytest -q          # 45 passed
-ruff check .       # lint
-mypy -p agent_core # strict 类型检查
+# 1. 更新 pyproject.toml 的 version（如 0.2.0）
+# 2. 提交并打 tag
+git add -A && git commit -m "release v0.2.0"
+git tag v0.2.0
+git push origin main --tags
+# 3. GitHub Actions 自动构建 wheel + sdist 并发布到 PyPI
 ```
 
-目录结构：
-
-```
-src/agent_core/
-├── abc.py            # AgentAdapter（抽象基类）
-├── adapter_base.py   # hooks 生命周期编排
-├── factory.py        # create_agent
-├── registry.py       # BackendRegistry
-├── logging.py        # configure_logging / summarize / formatters
-├── hooks/            # enums, context, result, dispatcher, emitter, base
-├── types/            # 统一类型系统
-├── utils/            # 输入归一化
-└── backends/         # stub, qcoder, deepagents（adapter + mapping + hooks 桥接）
-```
+也可以在 Actions 页面手动触发（`workflow_dispatch`）。整个流程不保存、不发送
+token —— 使用 GitHub 的 OIDC 身份，由 PyPI 对照 pending publisher 声明校验。
 
 ## License
 

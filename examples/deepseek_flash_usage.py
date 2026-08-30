@@ -14,7 +14,7 @@ from pathlib import Path
 # 允许直接运行本脚本时导入项目根目录的 config/ 包
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from agent_core import AgentBackend, create_agent
+from agent_switch import AgentBackend, create_agent
 from config.deepseek_flash import build_deepseek_flash_config
 
 

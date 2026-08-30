@@ -2,7 +2,7 @@
 
 import pytest
 
-from agent_core import (
+from agent_switch import (
     AgentBackend,
     AgentConfig,
     AgentMessage,
@@ -10,9 +10,9 @@ from agent_core import (
     MessageRole,
     create_agent,
 )
-from agent_core.hooks.base import BaseAgentHooks
-from agent_core.hooks.enums import AgentHookEvent
-from agent_core.hooks.result import HookOutcome, HookResult
+from agent_switch.hooks.base import BaseAgentHooks
+from agent_switch.hooks.enums import AgentHookEvent
+from agent_switch.hooks.result import HookOutcome, HookResult
 
 EXPECTED_SIX_EVENTS = [
     "beforeAgent",

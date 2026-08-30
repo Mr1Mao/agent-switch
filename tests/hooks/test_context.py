@@ -3,13 +3,13 @@
 import pytest
 from pydantic import ValidationError
 
-from agent_core.hooks.context import (
+from agent_switch.hooks.context import (
     AgentHookContext,
     BeforeAgentHookContext,
     BeforePromptHookContext,
     HookContextMap,
 )
-from agent_core.hooks.enums import AgentHookEvent
+from agent_switch.hooks.enums import AgentHookEvent
 
 
 def test_base_context_common_fields():

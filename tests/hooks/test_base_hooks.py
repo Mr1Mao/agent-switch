@@ -5,12 +5,12 @@ import asyncio
 import pytest
 from pydantic import ValidationError
 
-from agent_core import AgentConfig
-from agent_core.hooks.base import BaseAgentHooks
-from agent_core.hooks.context import BeforePromptHookContext
-from agent_core.hooks.dispatcher import AgentHooksDispatcher
-from agent_core.hooks.enums import AgentHookEvent
-from agent_core.hooks.result import HookOutcome, HookResult
+from agent_switch import AgentConfig
+from agent_switch.hooks.base import BaseAgentHooks
+from agent_switch.hooks.context import BeforePromptHookContext
+from agent_switch.hooks.dispatcher import AgentHooksDispatcher
+from agent_switch.hooks.enums import AgentHookEvent
+from agent_switch.hooks.result import HookOutcome, HookResult
 
 
 def test_single_hooks_normalized_to_list():

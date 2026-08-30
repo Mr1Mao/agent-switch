@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-from agent_core import AgentConfig, AgentMessage, MessageRole
+from agent_switch import AgentConfig, AgentMessage, MessageRole
 
 
 def test_agent_config_default_hooks_is_empty_list():

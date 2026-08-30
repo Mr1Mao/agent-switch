@@ -1,9 +1,9 @@
 """qcoder hooks 桥接测试。"""
 
-from agent_core.backends.qcoder.hooks_bridge import build_qoder_hooks
-from agent_core.hooks.base import BaseAgentHooks
-from agent_core.hooks.dispatcher import AgentHooksDispatcher
-from agent_core.hooks.result import HookOutcome, HookResult
+from agent_switch.backends.qcoder.hooks_bridge import build_qoder_hooks
+from agent_switch.hooks.base import BaseAgentHooks
+from agent_switch.hooks.dispatcher import AgentHooksDispatcher
+from agent_switch.hooks.result import HookOutcome, HookResult
 
 
 def test_build_qoder_hooks_only_registers_overridden_events():

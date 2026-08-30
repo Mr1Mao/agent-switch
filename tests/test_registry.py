@@ -2,7 +2,7 @@
 
 import pytest
 
-from agent_core import (
+from agent_switch import (
     AgentBackend,
     BackendNotFoundError,
     BackendRegistry,

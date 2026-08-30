@@ -8,7 +8,7 @@ from qoder_agent_sdk.types import (
     ToolUseBlock,
 )
 
-from agent_core import (
+from agent_switch import (
     AgentConfig,
     AgentMcpConfig,
     AgentMcpServer,
@@ -20,7 +20,7 @@ from agent_core import (
     ToolCall,
     ToolResult,
 )
-from agent_core.backends.qcoder.mapping import (
+from agent_switch.backends.qcoder.mapping import (
     agent_messages_to_qoder_wire,
     build_qoder_agent_options,
     qoder_message_to_agent_chunks,

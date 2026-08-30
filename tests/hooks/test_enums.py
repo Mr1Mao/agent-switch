@@ -2,7 +2,7 @@
 
 import pytest
 
-from agent_core.hooks.enums import AgentHookEvent, resolve_hook_event
+from agent_switch.hooks.enums import AgentHookEvent, resolve_hook_event
 
 
 def test_hook_event_short_values():

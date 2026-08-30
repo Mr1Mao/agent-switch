@@ -2,7 +2,7 @@
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 
-from agent_core import (
+from agent_switch import (
     AgentConfig,
     AgentMessage,
     AgentModel,
@@ -13,7 +13,7 @@ from agent_core import (
     ToolCall,
     ToolResult,
 )
-from agent_core.backends.deepagents.mapping import (
+from agent_switch.backends.deepagents.mapping import (
     agent_messages_to_langchain,
     build_create_agent_kwargs,
     langchain_message_to_agent_message,

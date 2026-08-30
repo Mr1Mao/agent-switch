@@ -8,7 +8,7 @@
 在你自己的 entry 入口中真实调用示例：
 
     import logging
-    from agent_core import AgentBackend, AgentConfig, create_agent
+    from agent_switch import AgentBackend, AgentConfig, create_agent
     from examples.hooks import AuditLogHooks, RateLimitHooks, SensitiveWordHooks
 
     logging.basicConfig(level=logging.INFO)  # 让 AuditLogHooks 的日志可见
@@ -29,7 +29,7 @@ from __future__ import annotations
 import logging
 import time
 
-from agent_core import (
+from agent_switch import (
     AgentMessage,
     BaseAgentHooks,
     HookOutcome,

@@ -1,5 +1,9 @@
 # agent-switch
 
+[![PyPI version](https://img.shields.io/pypi/v/agent-switch.svg)](https://pypi.org/project/agent-switch/)
+[![Python versions](https://img.shields.io/pypi/pyversions/agent-switch.svg)](https://pypi.org/project/agent-switch/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 **Unified abstraction layer for agent SDKs (deepagents, Qcoder SDK, etc.)**
 
 `agent-switch` gives your business code a single, stable API — `create_agent` + `run` / `stream` —
@@ -15,9 +19,9 @@ your upper-layer types or call sites.
 - **Hooks lifecycle**: 12 async hook events (`beforeAgent` … `afterStop`) with
   `BLOCK` / `MODIFY` outcomes and a per-`AgentConfig` hook list.
 - **Structured logging**: redacts secrets, summarizes config/input, Dev & JSON formatters,
-  configured only for the `agent_core` namespace (no global handlers).
+  configured only for the `agent_switch` namespace (no global handlers).
 - **Lazy dependencies**: `deepagents` is imported only when the `deepagents` backend is actually used;
-  `import agent_core` never requires it.
+  `import agent_switch` never requires it.
 
 ## Installation
 
@@ -35,7 +39,7 @@ pip install "agent-switch[all]"
 ## Quick start
 
 ```python
-from agent_core import AgentConfig, AgentMessage, MessageRole, create_agent, AgentBackend
+from agent_switch import AgentConfig, AgentMessage, MessageRole, create_agent, AgentBackend
 
 # qcoder runs on the real qoder-agent-sdk (needs `qodercli` installed & logged in)
 config = AgentConfig(system_prompt="Be concise.")
@@ -69,7 +73,7 @@ For the real `deepagents` backend, pass a pre-built LangChain `ChatModel` throug
 
 ```python
 from langchain_deepseek import ChatDeepSeek
-from agent_core import AgentConfig, create_agent, AgentBackend
+from agent_switch import AgentConfig, create_agent, AgentBackend
 
 model = ChatDeepSeek(model="deepseek-v4-flash", api_key="sk-...")
 config = AgentConfig(
@@ -94,7 +98,7 @@ lifecycle, streaming, tools / skills / MCP configuration, and session identity.
 ### Message normalization
 
 Input direction (`AgentMessage` → qoder CLI wire format, via
-`agent_core.backends.qcoder.mapping.agent_messages_to_qoder_wire`):
+`agent_switch.backends.qcoder.mapping.agent_messages_to_qoder_wire`):
 
 | agent-switch                | qoder wire                                                    |
 | ------------------------- | ------------------------------------------------------------- |
@@ -166,7 +170,7 @@ Token-level partial messages (`StreamEvent`) are not enabled by default.
 ## Hooks
 
 ```python
-from agent_core import (
+from agent_switch import (
     AgentConfig, AgentHookEvent, BaseAgentHooks, HookOutcome, HookResult, create_agent,
 )
 
@@ -294,50 +298,33 @@ The stream always ends with a chunk carrying `is_finish=True`.
 `thinking` / `meta` are **not** sent to the backend (input direction); they are only
 extracted on the way back.
 
-## Current status
+## Publishing
 
-- [x] Type system & unified API (`create_agent` / `run` / `stream`)
-- [x] `deepagents` backend (real implementation, lazy import)
-- [x] `qcoder` backend (real implementation on `qoder-agent-sdk`: message normalization, hooks bridging, streaming, tools / skills / MCP)
-- [x] Hooks lifecycle (12 events, BLOCK / MODIFY)
-- [x] deepagents call-level hook bridging via `AgentHooksMiddleware` (`beforeLLM` / `afterLLM` / `beforeTool` / `afterTool` / `afterToolError`)
-- [x] qcoder call-level hook bridging via Qoder native hooks (`PreToolUse` / `PostToolUse` / `PostToolUseFailure` / `PermissionRequest` / `SubagentStart` / `SubagentStop`)
-- [x] Structured logging (redaction, Dev / JSON formatters)
-- [ ] `beforePermission` / `beforeSubagent` / `afterSubagent` bridging for the `deepagents` backend
-- [ ] Token-level partial message streaming for `qcoder` (`StreamEvent`)
-- [ ] Qoder `QoderSDKClient` bidirectional / interrupt support
+Releases are published to PyPI automatically from GitHub Actions via
+**Trusted Publishing (OIDC)** — no API token needed after the one-time setup.
 
-## Roadmap
+**One-time setup (PyPI website, logged in):**
+1. Open https://pypi.org/manage/account/publishing/ → **Add a pending publisher**
+2. Fill in:
+   - Owner: `Mr1Mao`
+   - Repository: `agent-core` (use the actual repo name; if you rename the repo, re-add the publisher with the new name)
+   - Workflow filename: `release.yml`
+   - Environment: leave empty
+3. Save. The `.github/workflows/release.yml` workflow does the rest.
 
-1. Bridge the remaining `beforePermission` / `beforeSubagent` / `afterSubagent` events for `deepagents`.
-2. Add per-backend capability introspection (`supports_*` flags).
-3. Officially type the public API against the dev extras' SDK versions.
-
-## Development
-
+**Release flow (after setup):**
 ```bash
-python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"
-
-pytest -q          # 45 passed
-ruff check .       # lint
-mypy -p agent_core # strict type check
+# 1. bump the version in pyproject.toml
+# 2. commit and tag
+git add -A && git commit -m "release v0.2.0"
+git tag v0.2.0
+git push origin main --tags
+# 3. GitHub Actions builds wheel + sdist and publishes to PyPI automatically
 ```
 
-Layout:
-
-```
-src/agent_core/
-├── abc.py            # AgentAdapter (abstract)
-├── adapter_base.py   # hooks lifecycle orchestration
-├── factory.py        # create_agent
-├── registry.py       # BackendRegistry
-├── logging.py        # configure_logging / summarize / formatters
-├── hooks/            # enums, context, result, dispatcher, emitter, base
-├── types/            # unified type system
-├── utils/            # input normalization
-└── backends/         # stub, qcoder, deepagents (adapter + mapping + hooks bridge)
-```
+You can also trigger a release manually from the Actions tab
+(`workflow_dispatch`). The workflow never stores or sends a token — it uses
+GitHub's OIDC identity, which PyPI verifies against the pending publisher.
 
 ## License
 

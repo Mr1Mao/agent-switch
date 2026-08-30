@@ -3,7 +3,7 @@
 import pytest
 from langchain_core.messages import AIMessage
 
-from agent_core import (
+from agent_switch import (
     AgentBackend,
     AgentResponse,
     BackendNotFoundError,

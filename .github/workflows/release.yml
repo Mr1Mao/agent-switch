@@ -9,7 +9,7 @@
 # 一次性配置（在 PyPI 网页操作，需登录）：
 #   https://pypi.org/manage/account/publishing/  → Add a pending publisher
 #     - Owner: Mr1Mao
-#     - Repository: agent-core
+#     - Repository: agent-switch
 #     - Workflow filename: release.yml
 #     - Environment: 留空
 #   注意：本 workflow 的 publish job 未声明 environment，请与上述留空保持一致。

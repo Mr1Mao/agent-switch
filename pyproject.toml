@@ -49,11 +49,6 @@ dev = [
     "python-dotenv>=1.0",
 ]
 
-[tool.hatch.build]
-sources = ["src"]
-
-# 显式声明要打进 wheel 的包：项目名 agent-switch 与导入名 agent_switch 不同，
-# hatchling 的自动发现按「目录名匹配项目名」无法找到 src/agent_switch/，必须显式指定。
 [tool.hatch.build.targets.wheel]
 packages = ["src/agent_switch"]
 

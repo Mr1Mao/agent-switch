@@ -40,6 +40,18 @@ jobs:
         run: python -m pip install --upgrade build
       - name: Build distributions
         run: python -m build
+      - name: Verify wheel contains the package
+        # 防止历史问题复发：python -m build 从 sdist 构建 wheel，
+        # 若配置不匹配会产出「只有 dist-info 的空 wheel」，这里显式校验。
+        run: |
+          python - <<'EOF'
+          import glob, zipfile
+          wheel = glob.glob("dist/*.whl")[0]
+          names = zipfile.ZipFile(wheel).namelist()
+          pkg = [n for n in names if n.startswith("agent_switch/") and n.endswith(".py")]
+          assert pkg, f"wheel 为空（缺少 agent_switch 包）: {names}"
+          print(f"wheel 包含 {len(pkg)} 个包文件 ✅")
+          EOF
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
